@@ -8,6 +8,7 @@ provider:
   region: us-east-1
   environment:
     SLACK_TOKEN: ${ssm:slackToken}
+    TWILIO_TOKEN: ${ssm:twilioToken}
 
 functions:
   app:

@@ -4,7 +4,10 @@ const serverless = require("serverless-http");
 const bodyParser = require("body-parser");
 const rp = require("request-promise");
 const app = require("express")();
+const twilio = require("twilio");
+
 app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: false }));
 
 const possibleResponses = [
   "It is certain.",
@@ -65,6 +68,29 @@ app.post("/", async function(req, res) {
   }
 });
 
+app.post("/twilio", async (req, res) => {
+  console.log(req.body);
+  let { Body, From, To, AccountSid } = req.body;
+  const client = twilio(AccountSid, process.env.TWILIO_TOKEN);
+  let text = "";
+  if (!/\?/.test(Body)) {
+    Body = `${Body}?`;
+  }
+  const isYesNoQuestion = await isYesNo(Body);
+  if (!isYesNoQuestion) {
+    text = "Sorry. I can only answer yes/no questions.";
+  } else {
+    text =
+      possibleResponses[Math.floor(Math.random() * possibleResponses.length)];
+  }
+
+  await client.messages.create({
+    to: From,
+    from: To,
+    body: text
+  });
+});
+
 const isYesNo = async question => {
   const options = {
     method: "POST",
@@ -79,7 +105,7 @@ const isYesNo = async question => {
   console.log(nlp);
   const { sentences } = JSON.parse(nlp);
   const firstSentence = sentences[0];
-  return !/SQ/.test(firstSentence.parse);
+  return /SQ/.test(firstSentence.parse);
 };
 
 module.exports.handler = serverless(app);
