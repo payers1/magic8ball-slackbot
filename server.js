@@ -4,7 +4,6 @@ const serverless = require("serverless-http");
 const bodyParser = require("body-parser");
 const rp = require("request-promise");
 const app = require("express")();
-const twilio = require("twilio");
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -34,16 +33,17 @@ const possibleResponses = [
 
 app.get("/ping", (req, res) => res.send(new Date().toISOString()));
 
-app.post("/", async function(req, res) {
+app.post("/", async (req, res) => {
   const { body } = req;
   const { event } = body;
   if (body.type === "url_verification") {
     response.send(body.challenge);
   } else if (event.type === "app_mention") {
     const { channel } = event;
-    let question = event.text.replace("<@U9MRFF0UD>", "").trim();
-    if (!/\?/.test(body)) {
-      question = `${body}?`;
+    console.log(event)
+    let question = event.text.replace("<@UCG3HGCH0>", "").trim();
+    if (!/\?/.test(question)) {
+      question = `${question}?`;
     }
 
     let text = "";
@@ -51,61 +51,34 @@ app.post("/", async function(req, res) {
     if (!isYesNoQuestion) {
       text = "Sorry. I can only answer yes/no questions.";
     } else {
-      text =
-        possibleResponses[Math.floor(Math.random() * possibleResponses.length)];
+      text = possibleResponses[Math.floor(Math.random() * possibleResponses.length)];
     }
 
-    return web.chat
-      .postMessage({
-        channel,
-        text
-      })
-      .then(slackres => {
-        res.sendStatus(200);
-        console.log("Message sent: ", slackres.ts);
-      })
-      .catch(console.error);
+    return web.chat.postMessage({
+      channel,
+      text
+    }).then(slackres => {
+      res.sendStatus(200);
+      console.log("Message sent: ", slackres.ts);
+    }).catch(console.error);
   }
 });
 
-app.post("/twilio", async (req, res) => {
-  console.log(req.body);
-  let { Body, From, To, AccountSid } = req.body;
-  const client = twilio(AccountSid, process.env.TWILIO_TOKEN);
-  let text = "";
-  if (!/\?/.test(Body)) {
-    Body = `${Body}?`;
-  }
-  const isYesNoQuestion = await isYesNo(Body);
-  if (!isYesNoQuestion) {
-    text = "Sorry. I can only answer yes/no questions.";
-  } else {
-    text =
-      possibleResponses[Math.floor(Math.random() * possibleResponses.length)];
-  }
-
-  await client.messages.create({
-    to: From,
-    from: To,
-    body: text
-  });
-});
 
 const isYesNo = async question => {
-  const options = {
+  const nlp = await rp({
     method: "POST",
-    url: "http://104.248.48.204:9000/",
+    url: "http://167.172.143.199:9000",
     qs: {
       properties: "%22annotators%22%3A+%22parse%22",
       pipelineLanguage: "en"
     },
     body: question
-  };
-  const nlp = await rp(options);
-  console.log(nlp);
+  });
   const { sentences } = JSON.parse(nlp);
   const firstSentence = sentences[0];
-  return /SQ/.test(firstSentence.parse);
+  const firstNode = firstSentence.parse.split('\n')[1]
+  return /SQ/.test(firstNode);
 };
 
 module.exports.handler = serverless(app);

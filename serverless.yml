@@ -2,13 +2,12 @@ service: magic-eightball
 
 provider:
   name: aws
-  runtime: nodejs8.10
+  runtime: nodejs12.x
   stage: dev
   profile: serverless
   region: us-east-1
   environment:
     SLACK_TOKEN: ${ssm:slackToken}
-    TWILIO_TOKEN: ${ssm:twilioToken}
 
 functions:
   app:
